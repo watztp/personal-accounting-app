@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Drill Down</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --ink:#111827;
+      --muted:#6b7280;
+      --accent:#2563eb;
+      --shadow:0 10px 25px rgba(0,0,0,.06);
+      --radius:14px;
+      --border:#e5e7eb;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+    }
+    .wrap{max-width:1280px; margin:0 auto; padding:20px 20px 40px;}
+    .topbar{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:8px 0 16px;}
+    .title{font-size:22px; font-weight:800;}
+    .btn{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      background:var(--accent);
+      color:#fff;
+      font-weight:700;
+      padding:10px 14px;
+      border-radius:10px;
+      box-shadow:var(--shadow);
+    }
+    .btn.secondary{background:#334155}
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+    }
+    .filters{display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:12px;}
+    .field{display:flex; flex-direction:column; gap:6px;}
+    .field label{font-size:13px; color:var(--muted); font-weight:700;}
+    .field select{
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:#fff;
+      color:var(--ink);
+    }
+    .status{margin-top:10px; color:var(--muted); font-size:13px;}
+    .table-card{margin-top:16px;}
+    .table-wrap{overflow:auto; border:1px solid var(--border); border-radius:12px; max-height:70vh;}
+    table{width:100%; border-collapse:separate; border-spacing:0; min-width:760px;}
+    thead th{
+      position:sticky;
+      top:0;
+      background:#fafafa;
+      padding:10px;
+      text-align:left;
+      border-bottom:1px solid var(--border);
+      font-size:12px;
+      color:var(--muted);
+      user-select:none;
+      white-space:nowrap;
+    }
+    thead th.sortable{cursor:pointer}
+    tbody td{padding:10px; border-bottom:1px solid #f1f5f9; font-size:14px;}
+    tbody tr:nth-child(even){background:#fcfdff}
+    .num{text-align:right; font-variant-numeric: tabular-nums;}
+    .empty{padding:16px; color:var(--muted); text-align:center;}
+    @media (max-width: 900px){
+      .filters{grid-template-columns: repeat(2, minmax(160px, 1fr));}
+    }
+    @media (max-width: 540px){
+      .filters{grid-template-columns: 1fr;}
+    }
+    @media (max-width: 768px){
+      .wrap{padding:14px 14px 24px;}
+      .topbar{
+        flex-direction:column;
+        align-items:stretch;
+      }
+      .topbar > div:last-child{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:8px;
+        width:100%;
+      }
+      .topbar > div:last-child .btn{
+        width:100%;
+        min-height:44px;
+      }
+      .filters{grid-template-columns:1fr;}
+      .field select{
+        min-height:44px;
+        font-size:16px;
+      }
+      .table-wrap{
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+      }
+      table{min-width:720px;}
+      thead th, tbody td{
+        padding:9px 10px;
+        font-size:13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">Drill Down</div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="fetchBtn" type="button">Fetch</button>
+        <button class="btn secondary" id="resetFiltersBtn" type="button">Reset Filters</button>
+        <button class="btn secondary" id="backBtn" type="button">Back to Dashboard</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filters">
+        <div class="field">
+          <label for="yearFilter">Year</label>
+          <select id="yearFilter"><option value="all">All</option></select>
+        </div>
+        <div class="field">
+          <label for="monthFilter">Month</label>
+          <select id="monthFilter"><option value="all">All</option></select>
+        </div>
+        <div class="field">
+          <label for="categoryFilter">Category</label>
+          <select id="categoryFilter"><option value="all">All</option></select>
+        </div>
+        <div class="field">
+          <label for="subCategoryFilter">Sub Category</label>
+          <select id="subCategoryFilter"><option value="all">All</option></select>
+        </div>
+      </div>
+      <div class="status" id="statusText">Loading...</div>
+    </div>
+
+    <div class="card table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="date">Date</th>
+              <th class="sortable" data-sort="item">Item</th>
+              <th class="sortable num" data-sort="quantity">Quantity</th>
+              <th class="sortable num" data-sort="price">Price</th>
+              <th class="sortable" data-sort="category">Category</th>
+              <th class="sortable" data-sort="subcategory">Sub Category</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="emptyText" style="display:none;">No records</div>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = "";
+  const PAYLOAD_PATH = "/api/payloads";
+
+  let RESOLVED_USER_ID = null;
+
+  const ALL_ROWS = [];
+  let filteredRows = [];
+  const ACTIVE_FILTERS = { year: 'all', month: 'all', category: 'all', subcategory: 'all' };
+  const sortState = { key: 'date', dir: 'desc' };
+  const FILTER_META = {
+    years: [],
+    monthsByYear: {},
+    categories: [],
+    subcategoriesByCategory: {},
+    filterRows: [],
+  };
+
+  const yearFilter = document.getElementById('yearFilter');
+  const monthFilter = document.getElementById('monthFilter');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const subCategoryFilter = document.getElementById('subCategoryFilter');
+  const fetchBtn = document.getElementById('fetchBtn');
+  const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+  const tableBody = document.getElementById('tableBody');
+  const emptyText = document.getElementById('emptyText');
+  const statusText = document.getElementById('statusText');
+
+  function withIdentityBody(obj = {}){
+    return { ...obj };
+  }
+
+  function parseNumber(value){
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const cleaned = String(value).replace(/[^0-9.\-]/g, '');
+    if (!cleaned) return null;
+    const out = Number(cleaned);
+    return Number.isFinite(out) ? out : null;
+  }
+
+  function cleanText(value){
+    if (value === null || value === undefined) return '';
+    return String(value).trim();
+  }
+
+  function parseDateInfo(row){
+    const candidates = [
+      row.date, row.row_date, row.datetime, row.txn_date, row.transaction_date,
+      row.created_at, row.receipt_date, row.purchased_at
+    ];
+
+    for (const c of candidates){
+      if (!c) continue;
+      const dt = new Date(c);
+      if (!Number.isNaN(dt.getTime())) {
+        const year = dt.getFullYear();
+        const month = dt.getMonth() + 1;
+        const iso = `${year}-${String(month).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        return { year, month, date: iso, dateTs: dt.getTime() };
+      }
+      if (typeof c === 'string') {
+        const m = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) {
+          const year = Number(m[1]);
+          const month = Number(m[2]);
+          const date = `${m[1]}-${m[2]}-${m[3]}`;
+          const dateTs = new Date(date + 'T00:00:00').getTime();
+          return { year, month, date, dateTs: Number.isFinite(dateTs) ? dateTs : null };
+        }
+      }
+    }
+
+    const y = parseNumber(row.year);
+    const m = parseNumber(row.month);
+    const year = Number.isFinite(y) ? Number(y) : null;
+    const month = Number.isFinite(m) ? Number(m) : null;
+    const date = year && month ? `${year}-${String(month).padStart(2, '0')}-01` : '';
+    const dateTs = date ? new Date(date + 'T00:00:00').getTime() : null;
+    return { year, month, date, dateTs: Number.isFinite(dateTs) ? dateTs : null };
+  }
+
+  function mapItemRow(row){
+    if (!row || typeof row !== 'object') return null;
+
+    const item = cleanText(
+      row.item_name ?? row.item ?? row.name ?? row.description ?? row.product_name ?? row.title
+    );
+    const price = parseNumber(
+      row.price ?? row.amount ?? row.total ?? row.total_price ?? row.item_price ?? row.cost ?? row.value ?? row.amount_yen
+    );
+    const category = cleanText(row.category ?? row.cat ?? row.category_name ?? row.cat_name);
+    const subcategory = cleanText(
+      row.sub_category ?? row.subcategory ?? row.subcat ?? row.subcat_name ?? row.sub_category_name
+    );
+    const quantity = parseNumber(
+      row.quantity ?? row.qty ?? row.count ?? row.item_qty ?? row.total_quantity
+    );
+
+    if (!item && !Number.isFinite(price)) return null;
+
+    const { year, month, date, dateTs } = parseDateInfo(row);
+    return {
+      item: item || '(no name)',
+      quantity: Number.isFinite(quantity) ? quantity : 1,
+      price: Number.isFinite(price) ? price : 0,
+      category: category || 'Uncategorized',
+      subcategory: subcategory || 'Uncategorized',
+      year,
+      month,
+      date: date || '',
+      dateTs: Number.isFinite(dateTs) ? dateTs : 0,
+    };
+  }
+
+  function flattenObjectArrays(root){
+    const out = [];
+    const stack = [root];
+    const seen = new Set();
+
+    while (stack.length){
+      const cur = stack.pop();
+      if (!cur || typeof cur !== 'object') continue;
+      if (seen.has(cur)) continue;
+      seen.add(cur);
+
+      if (Array.isArray(cur)) {
+        if (cur.length && cur.every(x => x && typeof x === 'object' && !Array.isArray(x))) {
+          out.push(cur);
+        }
+        for (const v of cur) stack.push(v);
+      } else {
+        for (const v of Object.values(cur)) stack.push(v);
+      }
+    }
+
+    return out;
+  }
+
+  function rowsFromRawAgg(payload){
+    const raw = payload && (payload.raw_agg || payload.payload || (payload.upstream && payload.upstream.payload));
+    if (!raw || !raw.data || !Array.isArray(raw.data.day)) return [];
+
+    const cats = Array.isArray(raw.cats) ? raw.cats : [];
+    const subcats = Array.isArray(raw.subcats) ? raw.subcats : [];
+    const dayArr = raw.data.day || [];
+    const sidArr = raw.data.subcat_id || [];
+    const amtArr = raw.data.amount_yen || [];
+    const baseDate = String(raw.base_date || '').trim();
+
+    const rows = [];
+    for (let i=0; i<dayArr.length; i++) {
+      const sid = Number(sidArr[i]);
+      const amount = Number(amtArr[i]);
+      if (!Number.isFinite(sid) || !Number.isFinite(amount)) continue;
+
+      const sub = subcats[sid] || {};
+      const catId = Number(sub.cat_id);
+      const category = cleanText(cats[catId]) || 'Uncategorized';
+      const subcategory = cleanText(sub.name) || 'Uncategorized';
+
+      let date = '';
+      let year = null;
+      let month = null;
+      let dateTs = 0;
+      if (baseDate) {
+        const d = new Date(baseDate + 'T00:00:00');
+        if (!Number.isNaN(d.getTime())) {
+          d.setDate(d.getDate() + Number(dayArr[i] || 0));
+          year = d.getFullYear();
+          month = d.getMonth() + 1;
+          date = `${year}-${String(month).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          dateTs = d.getTime();
+        }
+      }
+
+      rows.push({
+        item: subcategory,
+        quantity: 1,
+        price: amount,
+        category,
+        subcategory,
+        year,
+        month,
+        date,
+        dateTs,
+      });
+    }
+    return rows;
+  }
+
+  function normalizeRows(payload){
+    if (payload && Array.isArray(payload.rows)) {
+      const direct = [];
+      for (const row of payload.rows) {
+        const m = mapItemRow(row);
+        if (m) direct.push(m);
+      }
+      if (direct.length) return direct;
+    }
+
+    const arrays = flattenObjectArrays(payload);
+    const mapped = [];
+
+    for (const arr of arrays) {
+      for (const row of arr) {
+        const m = mapItemRow(row);
+        if (m) mapped.push(m);
+      }
+    }
+
+    if (mapped.length) return mapped;
+    return rowsFromRawAgg(payload);
+  }
+
+  function currency(n){
+    if (!Number.isFinite(n)) return '—';
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'JPY',
+        maximumFractionDigits: 0,
+      }).format(n);
+    } catch {
+      return String(n);
+    }
+  }
+
+  function formatQuantity(n){
+    if (!Number.isFinite(n)) return '—';
+    const rounded = Math.round(n * 1000) / 1000;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(3).replace(/\.?0+$/, '');
+  }
+
+  function setOptions(selectEl, values, formatter){
+    const current = selectEl.value || 'all';
+    const opts = ['<option value="all">All</option>'];
+    for (const v of values) {
+      const label = formatter ? formatter(v) : String(v);
+      opts.push(`<option value="${String(v)}">${label}</option>`);
+    }
+    selectEl.innerHTML = opts.join('');
+
+    const hasCurrent = values.some(v => String(v) === current);
+    selectEl.value = hasCurrent ? current : 'all';
+  }
+
+  function getSelectionFromUi(){
+    return {
+      year: yearFilter.value || 'all',
+      month: monthFilter.value || 'all',
+      category: categoryFilter.value || 'all',
+      subcategory: subCategoryFilter.value || 'all',
+    };
+  }
+
+  function normalizeFilterMeta(payload){
+    const years = Array.isArray(payload && payload.years)
+      ? payload.years.map(v => Number(v)).filter(v => Number.isFinite(v))
+      : [];
+    years.sort((a,b)=>b-a);
+
+    const monthsByYearRaw = (payload && payload.months_by_year && typeof payload.months_by_year === 'object')
+      ? payload.months_by_year
+      : {};
+    const monthsByYear = {};
+    for (const year of years) {
+      const list = Array.isArray(monthsByYearRaw[String(year)]) ? monthsByYearRaw[String(year)] : [];
+      const months = list.map(v => Number(v)).filter(v => Number.isFinite(v) && v >= 1 && v <= 12);
+      months.sort((a,b)=>b-a);
+      monthsByYear[String(year)] = [...new Set(months)];
+    }
+
+    const categories = Array.isArray(payload && payload.categories)
+      ? payload.categories.map(cleanText).filter(Boolean)
+      : [];
+    categories.sort((a,b)=>a.localeCompare(b));
+
+    const subMapRaw = (payload && payload.subcategories_by_category && typeof payload.subcategories_by_category === 'object')
+      ? payload.subcategories_by_category
+      : {};
+    const subMap = {};
+    for (const category of categories) {
+      const values = Array.isArray(subMapRaw[category]) ? subMapRaw[category] : [];
+      const normalized = [...new Set(values.map(cleanText).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+      subMap[category] = normalized;
+    }
+
+    const filterRowsRaw = Array.isArray(payload && payload.filter_rows) ? payload.filter_rows : [];
+    const filterRows = [];
+    const seen = new Set();
+    for (const row of filterRowsRaw) {
+      if (!row || typeof row !== 'object') continue;
+      const year = Number(row.year);
+      const month = Number(row.month);
+      const category = cleanText(row.category) || 'uncategorized';
+      const subcategory = cleanText(row.subcategory) || 'uncategorized';
+      if (!Number.isFinite(year) || !Number.isFinite(month)) continue;
+      if (month < 1 || month > 12) continue;
+      const key = `${year}|${month}|${category}|${subcategory}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      filterRows.push({ year: String(year), month: String(month), category, subcategory });
+    }
+
+    return {
+      years,
+      monthsByYear,
+      categories,
+      subcategoriesByCategory: subMap,
+      filterRows,
+      defaultYear: Number(payload && payload.default_year),
+      defaultMonth: Number(payload && payload.default_month),
+    };
+  }
+
+  function applyFilterMeta(meta){
+    FILTER_META.years = meta.years;
+    FILTER_META.monthsByYear = meta.monthsByYear;
+    FILTER_META.categories = meta.categories;
+    FILTER_META.subcategoriesByCategory = meta.subcategoriesByCategory;
+    FILTER_META.filterRows = meta.filterRows;
+
+    const hasDefaultYear = Number.isFinite(meta.defaultYear) && FILTER_META.years.includes(meta.defaultYear);
+    yearFilter.value = hasDefaultYear ? String(meta.defaultYear) : 'all';
+
+    const monthsForDefaultYear = hasDefaultYear
+      ? (FILTER_META.monthsByYear[String(meta.defaultYear)] || [])
+      : [];
+    const hasDefaultMonth = Number.isFinite(meta.defaultMonth) && monthsForDefaultYear.includes(meta.defaultMonth);
+    monthFilter.value = hasDefaultMonth ? String(meta.defaultMonth) : 'all';
+    categoryFilter.value = 'all';
+    subCategoryFilter.value = 'all';
+  }
+
+  function applyFiltersBase(rows){
+    const year = yearFilter.value;
+    const month = monthFilter.value;
+    return rows.filter(r => {
+      if (year !== 'all' && String(r.year) !== year) return false;
+      if (month !== 'all' && String(r.month) !== month) return false;
+      return true;
+    });
+  }
+
+  function collectUniqueValues(rows, key){
+    const out = [];
+    const seen = new Set();
+    for (const row of rows) {
+      const value = row[key];
+      if (!value || seen.has(value)) continue;
+      seen.add(value);
+      out.push(value);
+    }
+    return out;
+  }
+
+  function matchesFilterRow(row, selection, ignoreKey){
+    if (ignoreKey !== 'year' && selection.year !== 'all' && row.year !== selection.year) return false;
+    if (ignoreKey !== 'month' && selection.month !== 'all' && row.month !== selection.month) return false;
+    if (ignoreKey !== 'category' && selection.category !== 'all' && row.category !== selection.category) return false;
+    if (ignoreKey !== 'subcategory' && selection.subcategory !== 'all' && row.subcategory !== selection.subcategory) return false;
+    return true;
+  }
+
+  function deriveFilterOptions(selection){
+    const rows = FILTER_META.filterRows || [];
+    if (rows.length) {
+      const yearRows = rows.filter(r => matchesFilterRow(r, selection, 'year'));
+      const monthRows = rows.filter(r => matchesFilterRow(r, selection, 'month'));
+      const categoryRows = rows.filter(r => matchesFilterRow(r, selection, 'category'));
+      const subcategoryRows = rows.filter(r => matchesFilterRow(r, selection, 'subcategory'));
+
+      const years = collectUniqueValues(yearRows, 'year').map(Number).sort((a,b)=>b-a);
+      const months = collectUniqueValues(monthRows, 'month').map(Number).sort((a,b)=>b-a);
+      const categories = collectUniqueValues(categoryRows, 'category').sort((a,b)=>a.localeCompare(b));
+      const subcategories = collectUniqueValues(subcategoryRows, 'subcategory').sort((a,b)=>a.localeCompare(b));
+      return { years, months, categories, subcategories };
+    }
+
+    const years = FILTER_META.years || [];
+    const months = selection.year === 'all'
+      ? []
+      : (FILTER_META.monthsByYear[selection.year] || []);
+    const categories = FILTER_META.categories || [];
+    const subcategories = selection.category === 'all'
+      ? []
+      : (FILTER_META.subcategoriesByCategory[selection.category] || []);
+    return { years, months, categories, subcategories };
+  }
+
+  function refreshFilterOptions(){
+    const selection = {
+      year: yearFilter.value || 'all',
+      month: monthFilter.value || 'all',
+      category: categoryFilter.value || 'all',
+      subcategory: subCategoryFilter.value || 'all',
+    };
+
+    const yearOptions = deriveFilterOptions(selection).years;
+    setOptions(yearFilter, yearOptions);
+    if (selection.year !== 'all' && yearOptions.some(v => String(v) === selection.year)) {
+      yearFilter.value = selection.year;
+    }
+
+    const monthOptions = deriveFilterOptions({
+      year: yearFilter.value || 'all',
+      month: selection.month,
+      category: selection.category,
+      subcategory: selection.subcategory,
+    }).months;
+    setOptions(monthFilter, monthOptions, (m) => String(m).padStart(2, '0'));
+    if (selection.month !== 'all' && monthOptions.some(v => String(v) === selection.month)) {
+      monthFilter.value = selection.month;
+    }
+
+    const categoryOptions = deriveFilterOptions({
+      year: yearFilter.value || 'all',
+      month: monthFilter.value || 'all',
+      category: selection.category,
+      subcategory: selection.subcategory,
+    }).categories;
+    setOptions(categoryFilter, categoryOptions);
+    if (selection.category !== 'all' && categoryOptions.includes(selection.category)) {
+      categoryFilter.value = selection.category;
+    }
+
+    const subcategoryOptions = deriveFilterOptions({
+      year: yearFilter.value || 'all',
+      month: monthFilter.value || 'all',
+      category: categoryFilter.value || 'all',
+      subcategory: selection.subcategory,
+    }).subcategories;
+    setOptions(subCategoryFilter, subcategoryOptions);
+    if (selection.subcategory !== 'all' && subcategoryOptions.includes(selection.subcategory)) {
+      subCategoryFilter.value = selection.subcategory;
+    }
+  }
+
+  function resetFilters(){
+    yearFilter.value = 'all';
+    monthFilter.value = 'all';
+    categoryFilter.value = 'all';
+    subCategoryFilter.value = 'all';
+    refreshFilterOptions();
+  }
+
+  function compareRows(a, b, key, dir){
+    const mult = dir === 'asc' ? 1 : -1;
+    const av = a[key];
+    const bv = b[key];
+
+    if (key === 'price' || key === 'dateTs' || key === 'quantity') {
+      return ((Number(av) || 0) - (Number(bv) || 0)) * mult;
+    }
+    return String(av || '').localeCompare(String(bv || '')) * mult;
+  }
+
+  function applyAndRender(){
+    const year = ACTIVE_FILTERS.year;
+    const month = ACTIVE_FILTERS.month;
+    const category = ACTIVE_FILTERS.category;
+    const subcategory = ACTIVE_FILTERS.subcategory;
+
+    filteredRows = ALL_ROWS.filter(r => {
+      if (year !== 'all' && String(r.year) !== year) return false;
+      if (month !== 'all' && String(r.month) !== month) return false;
+      if (category !== 'all' && r.category !== category) return false;
+      if (subcategory !== 'all' && r.subcategory !== subcategory) return false;
+      return true;
+    });
+
+    const sortKey = sortState.key === 'date' ? 'dateTs' : sortState.key;
+    filteredRows.sort((a, b) => compareRows(a, b, sortKey, sortState.dir));
+    renderTable();
+
+    statusText.textContent = `Total ${filteredRows.length} rows`;
+    renderSortIndicators();
+  }
+
+  function renderSortIndicators(){
+    document.querySelectorAll('th.sortable').forEach(th => {
+      const key = th.dataset.sort;
+      const active = key === sortState.key;
+      const arrow = active ? (sortState.dir === 'asc' ? ' ↑' : ' ↓') : '';
+      const label = th.textContent.replace(/\s[↑↓]$/, '');
+      th.textContent = label + arrow;
+    });
+  }
+
+  function renderTable(){
+    if (!filteredRows.length) {
+      tableBody.innerHTML = '';
+      emptyText.style.display = '';
+      return;
+    }
+
+    emptyText.style.display = 'none';
+    tableBody.innerHTML = filteredRows.map(r => {
+      return `
+        <tr>
+          <td>${r.date || '-'}</td>
+          <td>${escapeHtml(r.item)}</td>
+          <td class="num">${formatQuantity(r.quantity)}</td>
+          <td class="num">${currency(r.price)}</td>
+          <td>${escapeHtml(r.category)}</td>
+          <td>${escapeHtml(r.subcategory)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function escapeHtml(text){
+    return String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  async function loadIdentity(){
+    const res = await fetch('/api/identity', { credentials: 'include', cache: 'no-store' });
+    if (!res.ok) throw new Error(`identity http ${res.status}`);
+    const id = await res.json();
+    RESOLVED_USER_ID = Number(id.user_id) || null;
+  }
+
+  async function fetchDrilldownPayload(selection){
+    const body = withIdentityBody({ payload_type: 'user_drilldown', limit: 2000 });
+    const hasYear = selection.year !== 'all';
+    if (hasYear) body.year = Number(selection.year);
+    if (hasYear && selection.month !== 'all') body.month = Number(selection.month);
+    if (selection.category !== 'all') body.category = selection.category;
+    if (selection.subcategory !== 'all') body.sub_category = selection.subcategory;
+
+    const res = await fetch(`${API_BASE}${PAYLOAD_PATH}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store',
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`drilldown fetch failed ${res.status}: ${text}`);
+    }
+
+    return await res.json();
+  }
+
+  async function fetchFilterPayload(){
+    const body = withIdentityBody({ payload_type: 'user_drilldown_filters' });
+    const res = await fetch(`${API_BASE}${PAYLOAD_PATH}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store',
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`drilldown filters failed ${res.status}: ${text}`);
+    }
+    return await res.json();
+  }
+
+  async function executeFetch(){
+    statusText.textContent = 'Fetching...';
+    fetchBtn.disabled = true;
+    const selection = getSelectionFromUi();
+    try {
+      const payload = await fetchDrilldownPayload(selection);
+      const rows = normalizeRows(payload);
+      ALL_ROWS.splice(0, ALL_ROWS.length, ...rows);
+      ACTIVE_FILTERS.year = selection.year;
+      ACTIVE_FILTERS.month = selection.month;
+      ACTIVE_FILTERS.category = selection.category;
+      ACTIVE_FILTERS.subcategory = selection.subcategory;
+      refreshFilterOptions();
+      applyAndRender();
+      const from = cleanText(payload && payload.date_from);
+      const to = cleanText(payload && payload.date_to);
+      statusText.textContent = from && to
+        ? `Total ${filteredRows.length} rows | Range ${from} to ${to}`
+        : `Total ${filteredRows.length} rows`;
+    } catch (err) {
+      console.error(err);
+      statusText.textContent = `Fetch failed: ${String(err.message || err)}`;
+      ALL_ROWS.splice(0, ALL_ROWS.length);
+      refreshFilterOptions();
+      applyAndRender();
+    } finally {
+      fetchBtn.disabled = false;
+    }
+  }
+
+  function bindEvents(){
+    document.getElementById('backBtn').addEventListener('click', () => {
+      window.location.href = '/';
+    });
+    fetchBtn.addEventListener('click', executeFetch);
+    resetFiltersBtn.addEventListener('click', () => {
+      resetFilters();
+      statusText.textContent = 'Filters reset. Click Fetch to update results.';
+    });
+
+    [yearFilter, monthFilter, categoryFilter, subCategoryFilter].forEach(el => {
+      el.addEventListener('change', () => {
+        refreshFilterOptions();
+        statusText.textContent = 'Filters changed. Click Fetch to update results.';
+      });
+    });
+
+    document.querySelectorAll('th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        if (!key) return;
+        if (sortState.key === key) {
+          sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortState.key = key;
+          sortState.dir = key === 'date' ? 'desc' : 'asc';
+        }
+        applyAndRender();
+      });
+    });
+  }
+
+  async function init(){
+    bindEvents();
+    try {
+      await loadIdentity();
+      const filterPayload = await fetchFilterPayload();
+      const meta = normalizeFilterMeta(filterPayload);
+      applyFilterMeta(meta);
+      refreshFilterOptions();
+      statusText.textContent = 'Ready. Select filters and click Fetch.';
+      return;
+    } catch (err) {
+      console.error(err);
+      statusText.textContent = `Init failed: ${String(err.message || err)}`;
+      ALL_ROWS.splice(0, ALL_ROWS.length);
+      refreshFilterOptions();
+      applyAndRender();
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

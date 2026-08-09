@@ -1,0 +1,4 @@
+# Secrets stay local; all source files in this directory remain visible to Git.
+.env
+.env.*
+!.env.example

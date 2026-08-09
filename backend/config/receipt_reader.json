@@ -1,0 +1,9 @@
+{
+  "type": "http_donut",
+  "http": {
+    "url": "http://localhost:9001/infer",
+    "file_field": "file",
+    "timeout_seconds": 60,
+    "connect_timeout_seconds": 10
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "Food & Drink": {
+    "sub_categories": [
+      "Fresh Meat & Poultry",
+      "Seafood",
+      "Vegetables",
+      "Fruits",
+      "Eggs & Dairy",
+      "Processed Food",
+      "Frozen Food",
+      "Snacks",
+      "Non-alcoholic Beverages",
+      "Alcoholic Beverages"
+    ]
+  },
+  "Transportation": {
+    "sub_categories": [
+      "Public Transport Fare",
+      "Taxi & Ride-hailing",
+      "Fuel & Gasoline",
+      "Toll Fees",
+      "Parking Fees",
+      "Car Maintenance",
+      "Car Insurance",
+      "Vehicle Parts & Accessories",
+      "Bicycle & Scooter",
+      "Transportation Services"
+    ]
+  },
+  "Houseware & Utilities": {
+    "sub_categories": [
+      "Kitchenware",
+      "Tableware",
+      "Storage & Organization",
+      "Cleaning Supplies",
+      "Laundry Products",
+      "Lighting",
+      "Home Decor",
+      "Plumbing & Repair Tools",
+      "Water & Electricity Bills",
+      "Gas Supply Bills"
+    ]
+  },
+  "Personal Care & Health": {
+    "sub_categories": [
+      "Hair Care",
+      "Body Wash & Soap",
+      "Facial Care",
+      "Dental Care",
+      "Deodorants & Perfume",
+      "Vitamins & Supplements",
+      "Over-the-counter Medicine",
+      "Prescription Medicine",
+      "Medical Services",
+      "Health Equipment"
+    ]
+  },
+  "Clothing & Accessories": {
+    "sub_categories": [
+      "Men's Clothing",
+      "Women's Clothing",
+      "Children's Clothing",
+      "Shoes",
+      "Bags",
+      "Belts & Wallets",
+      "Watches",
+      "Jewelry",
+      "Eyewear",
+      "Fashion Accessories"
+    ]
+  },
+  "Entertainment & Leisure": {
+    "sub_categories": [
+      "Movies & Cinema",
+      "Music & Concerts",
+      "Games & Consoles",
+      "Sports Equipment",
+      "Books & Magazines",
+      "Outdoor Activities",
+      "Hobbies & Crafts",
+      "Events & Festivals",
+      "Streaming Subscriptions",
+      "Amusement Parks"
+    ]
+  },
+  "Electronics & Appliances": {
+    "sub_categories": [
+      "Mobile Phones",
+      "Computers & Laptops",
+      "Tablets & Accessories",
+      "Audio Devices",
+      "Cameras & Photography",
+      "Home Appliances",
+      "Kitchen Appliances",
+      "Personal Electronics",
+      "Smart Home Devices",
+      "Wearable Devices"
+    ]
+  },
+  "Education & Office Supplies": {
+    "sub_categories": [
+      "School Supplies",
+      "Stationery",
+      "Books & Textbooks",
+      "Art Supplies",
+      "Course Fees",
+      "Online Learning Subscriptions",
+      "Office Furniture",
+      "Printers & Accessories",
+      "Paper Products",
+      "Writing Instruments"
+    ]
+  },
+  "Pet & Animal Care": {
+    "sub_categories": [
+      "Pet Food",
+      "Pet Treats",
+      "Pet Toys",
+      "Pet Grooming",
+      "Pet Clothing",
+      "Pet Bedding",
+      "Pet Healthcare",
+      "Pet Training",
+      "Aquarium Supplies",
+      "Pet Accessories"
+    ]
+  },
+  "Miscellaneous / Others": {
+    "sub_categories": [
+      "Gifts & Souvenirs",
+      "Charity Donations",
+      "Membership Fees",
+      "Specialty Items",
+      "Travel Accessories",
+      "Household Services",
+      "Festive Items",
+      "Second-hand Goods",
+      "Custom-made Products",
+      "Uncategorized Purchases"
+    ]
+  },
+  "Tobacco & Smoking Products": {
+  "sub_categories": [
+    "Cigarettes",
+    "Cigars",
+    "Roll-your-own Tobacco",
+    "Smokeless Tobacco",
+    "E-cigarettes",
+    "E-liquid & Accessories",
+    "Pipes & Accessories",
+    "Lighters & Matches",
+    "Hookah & Accessories",
+    "Other Smoking Products"
+    ]
+  }
+}

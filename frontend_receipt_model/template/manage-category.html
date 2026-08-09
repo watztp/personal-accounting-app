@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manage Category</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --ink:#111827;
+      --muted:#6b7280;
+      --accent:#2563eb;
+      --ok:#16a34a;
+      --danger:#b91c1c;
+      --warning:#b45309;
+      --border:#e5e7eb;
+      --shadow:0 10px 25px rgba(0,0,0,.06);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{min-height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Noto Sans";
+      line-height:1.45;
+    }
+    button,select{font:inherit}
+    .wrap{max-width:1200px; margin:0 auto; padding:40px 20px 60px}
+    .topbar{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:24px}
+    h1{font-size:24px; line-height:1.2; margin:0 0 6px; letter-spacing:-.2px}
+    .subtitle{margin:0; color:var(--muted); font-size:14px}
+    .actions{display:flex; gap:10px; flex-wrap:wrap}
+    .btn{
+      appearance:none;
+      border:0;
+      border-radius:10px;
+      padding:10px 16px;
+      min-height:42px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:14px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      text-decoration:none;
+      background:var(--accent);
+      color:#fff;
+      box-shadow:var(--shadow);
+    }
+    .btn.ghost{background:#eaf2ff; color:var(--accent)}
+    .btn.secondary{background:#334155; color:#fff}
+    .btn:disabled{opacity:.58; cursor:not-allowed}
+    .panel{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden}
+    .mode-banner{
+      display:none;
+      margin:0 0 18px;
+      padding:15px 17px;
+      border:1px solid #fed7aa;
+      border-radius:12px;
+      background:#fff7ed;
+      color:#9a3412;
+      font-size:13px;
+    }
+    .mode-banner.visible{display:block}
+    .mode-banner strong{display:block; color:#7c2d12; font-size:14px; margin-bottom:3px}
+    .panel-head{
+      padding:18px 20px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      border-bottom:1px solid var(--border);
+    }
+    .panel-title{margin:0; font-size:16px; font-weight:800}
+    .count{color:var(--muted); font-size:13px; font-weight:700; margin-left:8px}
+    .list{display:flex; flex-direction:column}
+    .review-row{
+      display:grid;
+      grid-template-columns:minmax(180px,1fr) minmax(190px,240px) minmax(220px,280px) 84px;
+      align-items:end;
+      gap:14px;
+      padding:16px 20px;
+      border-bottom:1px solid #f1f5f9;
+    }
+    .review-row:last-child{border-bottom:0}
+    .item-name{font-size:15px; font-weight:750; overflow-wrap:anywhere}
+    .item-meta{margin-top:4px; color:var(--muted); font-size:12px}
+    .field{display:flex; flex-direction:column; gap:6px; min-width:0}
+    .label{font-size:12px; color:var(--muted); font-weight:700}
+    .select{
+      width:100%;
+      min-width:0;
+      min-height:42px;
+      padding:9px 34px 9px 11px;
+      color:var(--ink);
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:9px;
+    }
+    .select:focus{outline:3px solid rgba(37,99,235,.14); border-color:var(--accent)}
+    .row-status{grid-column:2 / -1; min-height:18px; margin-top:-6px; font-size:12px; color:var(--danger)}
+    .state{padding:56px 24px; text-align:center; color:var(--muted); font-size:14px}
+    .state strong{display:block; color:var(--ink); font-size:17px; margin-bottom:6px}
+    .notice{min-height:20px; margin:12px 2px 0; font-size:13px; color:var(--muted)}
+    .notice.ok{color:var(--ok)}
+    .notice.error{color:var(--danger)}
+    @media (max-width:860px){
+      .review-row{grid-template-columns:1fr 1fr}
+      .item-copy{grid-column:1 / -1}
+      .save-btn{grid-column:2; justify-self:end; min-width:110px}
+      .row-status{grid-column:1 / -1; margin-top:0}
+    }
+    @media (max-width:640px){
+      .wrap{padding:18px 14px 44px}
+      .topbar{flex-direction:column; align-items:stretch; margin-bottom:16px}
+      .actions .btn{width:100%}
+      .panel-head{align-items:flex-start; padding:16px}
+      .review-row{grid-template-columns:1fr; padding:16px}
+      .item-copy,.save-btn,.row-status{grid-column:1}
+      .save-btn{width:100%; justify-self:stretch}
+      .select{font-size:16px; min-height:46px}
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="topbar">
+      <div>
+        <h1>Manage Category</h1>
+        <p class="subtitle" id="pageSubtitle">Review items that could not be categorized automatically.</p>
+      </div>
+      <div class="actions">
+        <a class="btn secondary" href="/">Back to Dashboard</a>
+      </div>
+    </header>
+
+    <aside class="mode-banner" id="modeBanner" role="status" aria-live="polite">
+      <strong>Manual assignment mode</strong>
+      <span id="modeMessage"></span>
+    </aside>
+
+    <section class="panel" aria-labelledby="reviewTitle">
+      <div class="panel-head">
+        <h2 class="panel-title" id="reviewTitle">Items needing review <span class="count" id="itemCount"></span></h2>
+        <button class="btn ghost" id="refreshBtn" type="button">Refresh</button>
+      </div>
+      <div class="list" id="reviewList" aria-live="polite">
+        <div class="state">Loading items…</div>
+      </div>
+    </section>
+    <div class="notice" id="pageNotice" role="status" aria-live="polite"></div>
+  </main>
+
+  <script>
+    (function(){
+      const list = document.getElementById('reviewList');
+      const count = document.getElementById('itemCount');
+      const notice = document.getElementById('pageNotice');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const reviewTitle = document.getElementById('reviewTitle');
+      const pageSubtitle = document.getElementById('pageSubtitle');
+      const modeBanner = document.getElementById('modeBanner');
+      const modeMessage = document.getElementById('modeMessage');
+      let categoryTree = {};
+      let pageMode = 'review_only';
+
+      function setNotice(message, kind){
+        notice.textContent = message || '';
+        notice.className = `notice${kind ? ` ${kind}` : ''}`;
+      }
+
+      function option(value, label){
+        const node = document.createElement('option');
+        node.value = value;
+        node.textContent = label;
+        return node;
+      }
+
+      function fillCategories(select, selected){
+        select.replaceChildren(option('', 'Select category'));
+        Object.keys(categoryTree).forEach(category => {
+          select.appendChild(option(category, category));
+        });
+        if (selected && categoryTree[selected]) select.value = selected;
+      }
+
+      function fillSubcategories(select, category, selected){
+        select.replaceChildren(option('', 'Select subcategory'));
+        const values = categoryTree[category]?.sub_categories || [];
+        values.forEach(subcategory => select.appendChild(option(subcategory, subcategory)));
+        select.disabled = !category;
+        if (selected && values.includes(selected)) select.value = selected;
+      }
+
+      function updateCount(){
+        const total = list.querySelectorAll('.review-row').length;
+        count.textContent = `(${total})`;
+        if (total === 0){
+          const detail = pageMode === 'manual'
+            ? 'No uncategorized items are waiting for manual assignment.'
+            : 'No items currently need manual category review.';
+          list.innerHTML = `<div class="state"><strong>All caught up</strong>${detail}</div>`;
+        }
+      }
+
+      function applyMode(payload){
+        pageMode = payload.mode === 'manual' ? 'manual' : 'review_only';
+        const manual = pageMode === 'manual';
+        modeBanner.classList.toggle('visible', manual);
+        reviewTitle.firstChild.textContent = manual ? 'Unassigned items ' : 'Items needing review ';
+        pageSubtitle.textContent = manual
+          ? 'Assign categories while automatic categorization is unavailable.'
+          : 'Review items that could not be categorized automatically.';
+        if (manual){
+          const reason = payload.worker?.message || 'Automatic categorization could not start.';
+          modeMessage.textContent = `${reason} All uncategorized items can be assigned here. Restart the server after fixing the provider configuration to restore automatic categorization.`;
+        }else{
+          modeMessage.textContent = '';
+        }
+      }
+
+      function makeRow(item){
+        const row = document.createElement('article');
+        row.className = 'review-row';
+        row.dataset.itemId = String(item.item_id);
+
+        const copy = document.createElement('div');
+        copy.className = 'item-copy';
+        const name = document.createElement('div');
+        name.className = 'item-name';
+        name.textContent = item.name || 'Unnamed item';
+        const meta = document.createElement('div');
+        meta.className = 'item-meta';
+        const itemState = item.needs_review ? 'Needs review' : 'Unassigned';
+        meta.textContent = `Item #${item.item_id} · ${itemState}`;
+        copy.append(name, meta);
+
+        const categoryField = document.createElement('label');
+        categoryField.className = 'field';
+        const categoryLabel = document.createElement('span');
+        categoryLabel.className = 'label';
+        categoryLabel.textContent = 'Category';
+        const categorySelect = document.createElement('select');
+        categorySelect.className = 'select';
+        categorySelect.setAttribute('aria-label', `Category for ${item.name}`);
+        fillCategories(categorySelect, item.category_name);
+        categoryField.append(categoryLabel, categorySelect);
+
+        const subcategoryField = document.createElement('label');
+        subcategoryField.className = 'field';
+        const subcategoryLabel = document.createElement('span');
+        subcategoryLabel.className = 'label';
+        subcategoryLabel.textContent = 'Subcategory';
+        const subcategorySelect = document.createElement('select');
+        subcategorySelect.className = 'select';
+        subcategorySelect.setAttribute('aria-label', `Subcategory for ${item.name}`);
+        fillSubcategories(subcategorySelect, categorySelect.value, item.sub_category_name);
+        subcategoryField.append(subcategoryLabel, subcategorySelect);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'btn save-btn';
+        saveBtn.textContent = 'Save';
+
+        const status = document.createElement('div');
+        status.className = 'row-status';
+        status.setAttribute('role', 'status');
+
+        categorySelect.addEventListener('change', () => {
+          fillSubcategories(subcategorySelect, categorySelect.value, '');
+          status.textContent = '';
+        });
+
+        saveBtn.addEventListener('click', async () => {
+          const category = categorySelect.value;
+          const subcategory = subcategorySelect.value;
+          if (!category || !subcategory){
+            status.textContent = 'Select both category and subcategory.';
+            return;
+          }
+
+          saveBtn.disabled = true;
+          categorySelect.disabled = true;
+          subcategorySelect.disabled = true;
+          saveBtn.textContent = 'Saving…';
+          status.textContent = '';
+          try{
+            const response = await fetch(`/api/categories/items/${encodeURIComponent(item.item_id)}`, {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              credentials:'include',
+              body:JSON.stringify({category, subcategory})
+            });
+            if (!response.ok){
+              const payload = await response.json().catch(() => ({}));
+              throw new Error(payload.detail || `Save failed (${response.status})`);
+            }
+            row.remove();
+            updateCount();
+            setNotice(`${item.name} was categorized successfully.`, 'ok');
+          }catch(error){
+            status.textContent = String(error.message || error);
+            saveBtn.disabled = false;
+            categorySelect.disabled = false;
+            subcategorySelect.disabled = !categorySelect.value;
+            saveBtn.textContent = 'Save';
+          }
+        });
+
+        row.append(copy, categoryField, subcategoryField, saveBtn, status);
+        return row;
+      }
+
+      async function loadItems(){
+        refreshBtn.disabled = true;
+        list.innerHTML = '<div class="state">Loading items…</div>';
+        count.textContent = '';
+        setNotice('', '');
+        try{
+          const response = await fetch('/api/categories/manage', {
+            credentials:'include',
+            cache:'no-store'
+          });
+          if (response.status === 401){
+            window.location.href = '/login';
+            return;
+          }
+          if (!response.ok) throw new Error(`Could not load items (${response.status})`);
+          const payload = await response.json();
+          applyMode(payload);
+          categoryTree = payload.categories || {};
+          const items = Array.isArray(payload.items) ? payload.items : [];
+          list.replaceChildren(...items.map(makeRow));
+          updateCount();
+        }catch(error){
+          list.innerHTML = '<div class="state"><strong>Unable to load items</strong>Use Refresh to try again.</div>';
+          setNotice(String(error.message || error), 'error');
+        }finally{
+          refreshBtn.disabled = false;
+        }
+      }
+
+      refreshBtn.addEventListener('click', loadItems);
+      loadItems();
+    })();
+  </script>
+</body>
+</html>

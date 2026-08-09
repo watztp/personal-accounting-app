@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Analytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --ink:#111827;
+      --muted:#6b7280;
+      --accent:#2563eb;
+      --shadow:0 10px 25px rgba(0,0,0,.06);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+    }
+    .wrap{max-width:1200px; margin:0 auto; padding:20px 20px 60px;}
+    .topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin:20px 0 24px;}
+    .userid{
+      font-size:20px; font-weight:700; letter-spacing:.2px;
+      background:var(--card); padding:10px 16px; border-radius:999px; box-shadow:var(--shadow);
+      display:flex; align-items:center; gap:10px;
+    }
+    .pill{
+      font-size:12px; font-weight:700; color:var(--muted);
+      background:#eef2ff; padding:4px 10px; border-radius:999px;
+    }
+    .actions{display:flex; align-items:center; gap:10px;}
+    .btn{
+      appearance:none; border:none; cursor:pointer;
+      background:var(--accent); color:#fff; font-weight:600;
+      padding:10px 16px; border-radius:10px; box-shadow:var(--shadow);
+      display:inline-flex; align-items:center; justify-content:center; text-decoration:none;
+    }
+    .btn.manage{background:#eaf2ff; color:var(--accent);}
+    .btn.secondary{ background:#334155; }
+    .btn:disabled{opacity:.6; cursor:not-allowed}
+    .grid{display:grid; gap:20px; grid-template-columns: 1.5fr 1fr;}
+    .card{
+      background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px;
+      min-height:260px; display:flex; flex-direction:column;
+    }
+    .card h3{margin:0 0 10px; font-size:16px;}
+    .chartbox{
+      position:relative;
+      height:320px; min-height:320px;
+      flex:0 0 auto;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .chartbox canvas{width:100% !important; height:100% !important; display:block;}
+    .placeholder{color:var(--muted); font-size:14px; text-align:center; padding:30px;}
+    .controls{display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;}
+    select, input[type="date"]{padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;}
+    .metrics{display:grid; gap:16px; grid-template-columns: repeat(3, 1fr); margin-top:20px;}
+    .metric{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px;}
+    .metric h4{margin:0; font-size:14px; color:var(--muted); font-weight:600;}
+    .metric .val{margin-top:6px; font-size:22px; font-weight:800;}
+    @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+    @media (max-width: 768px){
+      .wrap{padding:16px 14px 44px;}
+      .topbar{
+        flex-direction:column;
+        align-items:stretch;
+        gap:10px;
+        margin:12px 0 18px;
+      }
+      .userid{
+        width:100%;
+        font-size:16px;
+        border-radius:14px;
+        justify-content:space-between;
+        gap:8px;
+      }
+      .actions{
+        width:100%;
+        display:flex;
+        flex-wrap:wrap;
+      }
+      .actions .btn{
+        flex:1 1 120px;
+      }
+      .chartbox{
+        height:clamp(220px, 56vw, 300px);
+        min-height:0;
+      }
+      .metrics{
+        grid-template-columns:1fr;
+        gap:12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="userid">
+        👤 <span id="userLabel">User: loading…</span>
+        <span class="pill" id="authPill">Access</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="uploadBtn" disabled title="Enable after login is ready">Upload</button>
+        <a class="btn manage" href="/manage-category">Manage Category</a>
+        <button class="btn secondary" id="logoutBtn" title="Logout">Logout</button>
+
+        <!-- Hidden image picker (desktop + mobile, images only) -->
+        <input
+          id="imagePicker"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style="display:none"
+        />
+      </div>
+    </div>
+
+    <!-- Charts area -->
+    <div class="grid">
+      <!-- Bar + Trendline -->
+      <div class="card">
+        <div class="controls">
+          <h3 style="margin-right:auto">Spending Over Time</h3>
+          <label style="color:var(--muted); font-size:13px;">Granularity</label>
+          <select id="granularity">
+            <option value="month" selected>Monthly</option>
+            <option value="week">Weekly</option>
+            <option value="day">Daily</option>
+            <option value="year">Yearly</option>
+          </select>
+          <label style="color:var(--muted); font-size:13px;">From</label>
+          <input type="date" id="fromDate" disabled>
+          <label style="color:var(--muted); font-size:13px;">To</label>
+          <input type="date" id="toDate" disabled>
+          <button class="btn" id="refreshSeries" style="padding:8px 12px;">Refresh</button>
+        </div>
+        <div class="chartbox">
+          <canvas id="seriesChart"></canvas>
+          <div class="placeholder" id="seriesPlaceholder" style="display:none;">No data yet</div>
+        </div>
+      </div>
+
+      <!-- Pie + Drilldown -->
+      <div class="card">
+        <div class="controls">
+          <h3 style="margin-right:auto">Spending by Category</h3>
+          <button class="btn secondary" id="openDrilldown" style="padding:8px 12px;">Drill Down</button>
+          <button class="btn" id="backPie" style="padding:8px 12px; display:none;">Back</button>
+        </div>
+        <div class="chartbox">
+          <canvas id="pieChart"></canvas>
+          <div class="placeholder" id="piePlaceholder" style="display:none;">No data yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric">
+        <h4>This Week</h4>
+        <div class="val" id="mWeek">—</div>
+      </div>
+      <div class="metric">
+        <h4>This Month</h4>
+        <div class="val" id="mMonth">—</div>
+      </div>
+      <div class="metric">
+        <h4>This Year</h4>
+        <div class="val" id="mYear">—</div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  // ====== CONFIG ======
+  const API_BASE = "";
+  const PAYLOAD_PATH = "/api/payloads";
+  const UPLOAD_PATH = "/api/upload-receipt";
+
+  let RESOLVED_USER_ID = null;
+
+  // ====== UTIL ======
+  function currency(n){
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 }).format(n);
+    } catch { return String(n); }
+  }
+
+  // ====== LOCAL DEMO LOGIN ======
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    RESOLVED_USER_ID = null;
+    document.getElementById('userLabel').textContent = 'User: logging out...';
+    document.getElementById('authPill').textContent = 'No Access';
+    setUploadEnabled(false);
+    await fetch('/api/logout', { method: 'POST', credentials: 'include' }).catch(() => null);
+    window.location.href = '/login';
+  });
+
+  // ====== UPLOAD UI ======
+  const uploadBtn = document.getElementById('uploadBtn');
+  const imagePicker = document.getElementById('imagePicker');
+
+  function setUploadEnabled(enabled){
+    uploadBtn.disabled = !enabled;
+    uploadBtn.title = enabled ? '' : 'Enable after login is ready';
+  }
+
+  function setUploadBusy(isBusy){
+    uploadBtn.disabled = isBusy;
+    uploadBtn.textContent = isBusy ? 'Uploading…' : 'Upload';
+  }
+
+  uploadBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    imagePicker.click();
+  });
+
+  imagePicker.addEventListener('change', async () => {
+    const file = imagePicker.files && imagePicker.files[0];
+    if (!file) return;
+
+    // enforce: images only
+    if (!file.type || !file.type.startsWith('image/')) {
+      alert('Please select an image file only.');
+      imagePicker.value = '';
+      return;
+    }
+
+    if (!RESOLVED_USER_ID) {
+      alert('Login session is not ready. Please refresh or login again.');
+      imagePicker.value = '';
+      return;
+    }
+
+    try {
+      setUploadBusy(true);
+      const out = await uploadImageToBackend(file);
+      console.log("Upload OK:", out);
+      const token = out && out.worker_encrypt_id;
+      const userId = out.user_id ?? RESOLVED_USER_ID;
+
+      if (!token) {
+        throw new Error("Upload succeeded but worker_encrypt_id is missing");
+      }
+
+      await waitUntilReady(token);
+      const reviewUrl = `/review.html?token=${encodeURIComponent(token)}&user_id=${encodeURIComponent(String(userId ?? ''))}`;
+      window.location.href = reviewUrl;
+    } catch (err) {
+      console.error(err);
+      alert(String(err.message || err));
+    } finally {
+      setUploadBusy(false);
+      imagePicker.value = ''; // Reset so the same file can be selected again.
+    }
+  });
+
+  // ====== SESSION IDENTITY ======
+  async function loadIdentity(){
+    const label = document.getElementById('userLabel');
+    const pill = document.getElementById('authPill');
+
+    try {
+      const res = await fetch('/api/identity', { credentials: 'include', cache: 'no-store' });
+      if (!res.ok) throw new Error(`identity http ${res.status}`);
+      const id = await res.json();
+      RESOLVED_USER_ID = Number(id.user_id) || null;
+      label.textContent = RESOLVED_USER_ID ? `User ID: ${RESOLVED_USER_ID}` : 'User: unknown';
+      pill.textContent = RESOLVED_USER_ID ? 'Logged in' : 'No Access';
+      setUploadEnabled(!!RESOLVED_USER_ID);
+
+    } catch (e) {
+      RESOLVED_USER_ID = null;
+      label.textContent = 'User: not available';
+      pill.textContent = 'No Access';
+      setUploadEnabled(false);
+    }
+  }
+
+  async function fetchDashboardPayload(includeDateRange = true){
+    const fromDate = includeDateRange ? (document.getElementById('fromDate')?.value || null) : null;
+    const toDate = includeDateRange ? (document.getElementById('toDate')?.value || null) : null;
+    const body = withIdentityBody({
+      payload_type: 'dashboard',
+      date_from: fromDate,
+      date_to: toDate
+    });
+
+    const res = await fetch(`${API_BASE}${PAYLOAD_PATH}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store',
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`payload failed ${res.status}: ${text}`);
+    }
+    return await res.json();
+  }
+
+  // The server derives identity from the signed session cookie.
+  function withIdentityBody(obj = {}){
+    return { ...obj };
+  }
+
+  // ====== BACKEND: upload image ======
+  async function uploadImageToBackend(file){
+    const fd = new FormData();
+    fd.append('image', file);
+
+    const res = await fetch(`${API_BASE}${UPLOAD_PATH}`, {
+      method: 'POST',
+      body: fd,
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Upload failed ${res.status}: ${text}`);
+    }
+    return await res.json();
+  }
+
+  async function waitUntilReady(token){
+    const deadline = Date.now() + 120000;
+    while (Date.now() < deadline) {
+      const res = await fetch(`/api/jobs/${encodeURIComponent(token)}`, {
+        credentials: 'include', cache: 'no-store'
+      });
+      if (!res.ok) throw new Error(`Job status failed ${res.status}`);
+      const job = await res.json();
+      if (job.status === 'ready_for_review') return job;
+      if (['failed', 'timeout'].includes(job.status)) {
+        throw new Error(job.last_error || `Receipt processing ${job.status}`);
+      }
+      uploadBtn.textContent = job.status === 'running' ? 'Processing…' : 'Queued…';
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    throw new Error('Receipt processing timed out');
+  }
+
+  // ====== DUMMY DATA (for UI testing only) ======
+  function dummySeriesPayload(){
+    const labels = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
+    const bars = [42000, 51000, 38000, 61000, 47000, 53000];
+    const line = bars.map((v,i,arr)=>{
+      const start = Math.max(0, i-2);
+      const slice = arr.slice(start, i+1);
+      return Math.round(slice.reduce((a,b)=>a+b,0)/slice.length);
+    });
+
+    return {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { type: 'bar', label: 'Spend', data: bars, borderWidth: 1 },
+          { type: 'line', label: 'Trend', data: line, tension: 0.35, pointRadius: 2 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true } },
+        scales: { y: { beginAtZero: true } }
+      }
+    };
+  }
+
+  function dummyPiePayloads(){
+    const top = {
+      type: 'pie',
+      data: {
+        labels: ['Food', 'Transport', 'Daily', 'Other'],
+        datasets: [{ data: [52000, 14000, 21000, 9000] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    };
+
+    const children = {
+      Food: {
+        type: 'pie',
+        data: { labels: ['Cafe', 'Groceries', 'Restaurant'], datasets: [{ data: [12000, 28000, 12000] }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      },
+      Transport: {
+        type: 'pie',
+        data: { labels: ['Train', 'Taxi', 'Bus'], datasets: [{ data: [8000, 4000, 2000] }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      }
+    };
+
+    return { top, children };
+  }
+
+
+  // ====== FAST AGG (single payload, client-side) ======
+  // Expected backend field (recommended):
+  // payload.raw_agg = {
+  //   v:1, tz:"Asia/Tokyo", base_date:"YYYY-MM-DD", days:N,
+  //   cats:[...],
+  //   subcats:[{name:"...", cat_id:0}, ...],
+  //   data:{ day:[...], subcat_id:[...], amount_yen:[...] }
+  // }
+  let RAW_AGG = null;
+  let AGG = null; // { days, dailyTotal, prefixTotal, prefixCat, prefixSub }
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function toISODate(d){
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  }
+  function addDays(baseDateStr, dayOffset){
+    const d = new Date(baseDateStr + "T00:00:00");
+    d.setDate(d.getDate() + dayOffset);
+    return d;
+  }
+  function ymdToDayIndex(baseDateStr, ymdStr){
+    const base = new Date(baseDateStr + "T00:00:00");
+    const d = new Date(ymdStr + "T00:00:00");
+    const ms = d - base;
+    return Math.floor(ms / 86400000);
+  }
+  function clamp(n, lo, hi){ return Math.max(lo, Math.min(hi, n)); }
+
+  function buildAgg(raw){
+    const days = raw.days || 1826;
+    const catCount = raw.cats.length;
+    const subCount = raw.subcats.length;
+
+    const dailyTotal = new Int32Array(days);
+    const perDayCat = Array.from({length: catCount}, () => new Int32Array(days));
+    const perDaySub = Array.from({length: subCount}, () => new Int32Array(days));
+
+    const dayArr = raw.data.day || [];
+    const subArr = raw.data.subcat_id || [];
+    const amtArr = raw.data.amount_yen || [];
+
+    for (let i=0; i<dayArr.length; i++){
+      const day = dayArr[i] | 0;
+      const sid = subArr[i] | 0;
+      const amt = amtArr[i] | 0;
+      if (day < 0 || day >= days) continue;
+      if (sid < 0 || sid >= subCount) continue;
+
+      const cid = raw.subcats[sid].cat_id | 0;
+      dailyTotal[day] += amt;
+      if (cid >= 0 && cid < catCount) perDayCat[cid][day] += amt;
+      perDaySub[sid][day] += amt;
+    }
+
+    // Prefix sums (day+1 style)
+    const prefixTotal = new Int32Array(days+1);
+    for (let d=0; d<days; d++) prefixTotal[d+1] = prefixTotal[d] + dailyTotal[d];
+
+    const prefixCat = Array.from({length: catCount}, () => new Int32Array(days+1));
+    for (let c=0; c<catCount; c++){
+      const pc = prefixCat[c];
+      const src = perDayCat[c];
+      for (let d=0; d<days; d++) pc[d+1] = pc[d] + src[d];
+    }
+
+    const prefixSub = Array.from({length: subCount}, () => new Int32Array(days+1));
+    for (let s=0; s<subCount; s++){
+      const ps = prefixSub[s];
+      const src = perDaySub[s];
+      for (let d=0; d<days; d++) ps[d+1] = ps[d] + src[d];
+    }
+
+    return { days, dailyTotal, prefixTotal, prefixCat, prefixSub };
+  }
+
+  function sumRange(prefixArr, a, b){
+    // inclusive [a,b]
+    const A = a;
+    const B = b + 1;
+    return prefixArr[B] - prefixArr[A];
+  }
+
+  function getRangeFromUI(){
+    if (!RAW_AGG || !AGG) return null;
+
+    const fromStr = document.getElementById('fromDate').value;
+    const toStr = document.getElementById('toDate').value;
+
+    let a = 0, b = AGG.days - 1;
+    if (fromStr) a = ymdToDayIndex(RAW_AGG.base_date, fromStr);
+    if (toStr) b = ymdToDayIndex(RAW_AGG.base_date, toStr);
+
+    a = clamp(a, 0, AGG.days - 1);
+    b = clamp(b, 0, AGG.days - 1);
+    if (a > b) [a, b] = [b, a];
+
+    return { a, b };
+  }
+
+  function buildPiePayloadsForRange(a, b){
+    const catCount = RAW_AGG.cats.length;
+
+    // Top level: cat totals
+    const topLabels = RAW_AGG.cats.map(x => x);
+    const topVals = new Array(catCount).fill(0);
+    for (let c=0; c<catCount; c++){
+      topVals[c] = sumRange(AGG.prefixCat[c], a, b);
+    }
+
+    const top = {
+      type: 'pie',
+      data: { labels: topLabels, datasets: [{ data: topVals }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    };
+
+    // Children: subcat totals for each cat
+    const children = {};
+    for (let c=0; c<catCount; c++){
+      const labels = [];
+      const values = [];
+      for (let s=0; s<RAW_AGG.subcats.length; s++){
+        if ((RAW_AGG.subcats[s].cat_id | 0) !== c) continue;
+        const v = sumRange(AGG.prefixSub[s], a, b);
+        if (v <= 0) continue;
+        labels.push(RAW_AGG.subcats[s].name);
+        values.push(v);
+      }
+      if (!labels.length) continue;
+
+      children[ RAW_AGG.cats[c] ] = {
+        type: 'pie',
+        data: { labels, datasets: [{ data: values }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      };
+    }
+
+    return { top, children };
+  }
+
+  function buildSeriesPayloadForRange(a, b){
+    const gran = document.getElementById('granularity').value || 'month';
+    const labels = [];
+    const bars = [];
+
+    if (gran === 'day'){
+      for (let d=a; d<=b; d++){
+        labels.push(toISODate(addDays(RAW_AGG.base_date, d)));
+        bars.push(RAW_AGG && AGG ? AGG.dailyTotal[d] : 0);
+      }
+    } else if (gran === 'week'){
+      // simple 7-day buckets starting from a (fast and good enough)
+      let start = a;
+      while (start <= b){
+        const end = Math.min(b, start + 6);
+        const v = sumRange(AGG.prefixTotal, start, end);
+        labels.push(`${toISODate(addDays(RAW_AGG.base_date, start))}`);
+        bars.push(v);
+        start = end + 1;
+      }
+    } else if (gran === 'year'){
+      const m = new Map(); // YYYY -> sum
+      for (let d=a; d<=b; d++){
+        const dt = addDays(RAW_AGG.base_date, d);
+        const key = String(dt.getFullYear());
+        m.set(key, (m.get(key) || 0) + AGG.dailyTotal[d]);
+      }
+      for (const [k,v] of Array.from(m.entries()).sort((x,y)=>x[0].localeCompare(y[0]))){
+        labels.push(k);
+        bars.push(v);
+      }
+    } else {
+      // month (default) - calendar months
+      const m = new Map(); // YYYY-MM -> sum
+      for (let d=a; d<=b; d++){
+        const dt = addDays(RAW_AGG.base_date, d);
+        const key = `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}`;
+        m.set(key, (m.get(key) || 0) + AGG.dailyTotal[d]);
+      }
+      for (const [k,v] of Array.from(m.entries()).sort((x,y)=>x[0].localeCompare(y[0]))){
+        labels.push(k);
+        bars.push(v);
+      }
+    }
+
+    // simple trendline: moving average (window 3)
+    const line = bars.map((v,i,arr)=>{
+      const start = Math.max(0, i-2);
+      const slice = arr.slice(start, i+1);
+      return Math.round(slice.reduce((a,b)=>a+b,0)/slice.length);
+    });
+
+    return {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { type: 'bar', label: 'Spend', data: bars, borderWidth: 1 },
+          { type: 'line', label: 'Trend', data: line, tension: 0.35, pointRadius: 2 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true } },
+        scales: { y: { beginAtZero: true } }
+      }
+    };
+  }
+
+  function debounce(fn, ms){
+    let t = null;
+    return (...args) => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => fn(...args), ms);
+    };
+  }
+
+  function rebuildCharts(){
+    if (!RAW_AGG || !AGG) return;
+
+    const r = getRangeFromUI();
+    if (!r) return;
+
+    // series (bar+trend) + pie (drilldown)
+    renderSeries(buildSeriesPayloadForRange(r.a, r.b));
+    renderPieTop(buildPiePayloadsForRange(r.a, r.b));
+  }
+
+
+  // ====== RENDER ======
+  let seriesChart, pieChart;
+  let pieState = { level: 'top', data: null, currentCat: null };
+
+  function renderSeries(payload){
+    const canvas = document.getElementById('seriesChart');
+    const ph = document.getElementById('seriesPlaceholder');
+    if (!payload){
+      canvas.style.display = 'none';
+      ph.style.display = '';
+      return;
+    }
+    ph.style.display = 'none';
+    canvas.style.display = '';
+
+    if (seriesChart) seriesChart.destroy();
+    seriesChart = new Chart(canvas, payload);
+  }
+
+  function renderPieTop(payloads){
+    const canvas = document.getElementById('pieChart');
+    const ph = document.getElementById('piePlaceholder');
+    const backBtn = document.getElementById('backPie');
+
+    if (!payloads || !payloads.top){
+      canvas.style.display = 'none';
+      ph.style.display = '';
+      backBtn.style.display = 'none';
+      return;
+    }
+
+    ph.style.display = 'none';
+    canvas.style.display = '';
+    backBtn.style.display = 'none';
+
+    pieState.level = 'top';
+    pieState.currentCat = null;
+    pieState.data = payloads;
+
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(canvas, payloads.top);
+
+    canvas.onclick = (evt) => {
+      const points = pieChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+      if (!points || !points.length) return;
+      const idx = points[0].index;
+      const cat = payloads.top.data.labels[idx];
+      const child = payloads.children && payloads.children[cat];
+      if (child) renderPieChild(cat, child);
+    };
+  }
+
+  function renderPieChild(category, childPayload){
+    const canvas = document.getElementById('pieChart');
+    const backBtn = document.getElementById('backPie');
+
+    pieState.level = 'child';
+    pieState.currentCat = category;
+
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(canvas, childPayload);
+    backBtn.style.display = '';
+    canvas.onclick = null;
+  }
+
+  document.getElementById('backPie').addEventListener('click', () => {
+    if (pieState.data) renderPieTop(pieState.data);
+  });
+
+  document.getElementById('openDrilldown').addEventListener('click', () => {
+    window.open('/drilldown', '_blank', 'noopener');
+  });
+
+  function renderMetrics(metrics){
+    document.getElementById('mWeek').textContent  = currency(metrics && metrics.week);
+    document.getElementById('mMonth').textContent = currency(metrics && metrics.month);
+    document.getElementById('mYear').textContent  = currency(metrics && metrics.year);
+  }
+
+  function sumAggRangeByDate(startDate, endDate){
+    if (!RAW_AGG || !AGG || !RAW_AGG.base_date || !Number.isFinite(AGG.days) || AGG.days <= 0) return 0;
+    const maxIdx = AGG.days - 1;
+    const startIdxRaw = ymdToDayIndex(RAW_AGG.base_date, toISODate(startDate));
+    const endIdxRaw = ymdToDayIndex(RAW_AGG.base_date, toISODate(endDate));
+    if (endIdxRaw < 0 || startIdxRaw > maxIdx) return 0;
+    const a = Math.max(0, startIdxRaw);
+    const b = Math.min(maxIdx, endIdxRaw);
+    if (a > b) return 0;
+    return sumRange(AGG.prefixTotal, a, b);
+  }
+
+  function computeCurrentMetricsFromAgg(){
+    if (!RAW_AGG || !AGG) return null;
+
+    const today = new Date();
+    const yearStart = new Date(today.getFullYear(), 0, 1);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monday = new Date(today);
+    const mondayOffset = (today.getDay() + 6) % 7; // Monday=0
+    monday.setDate(today.getDate() - mondayOffset);
+
+    return {
+      week: sumAggRangeByDate(monday, today),
+      month: sumAggRangeByDate(monthStart, today),
+      year: sumAggRangeByDate(yearStart, today),
+    };
+  }
+
+  // ====== CONTROLS ======
+  const debouncedRebuild = debounce(() => rebuildCharts(), 120);
+
+  document.getElementById('granularity').addEventListener('change', debouncedRebuild);
+  document.getElementById('fromDate').addEventListener('change', debouncedRebuild);
+  document.getElementById('toDate').addEventListener('change', debouncedRebuild);
+
+  function setupDateLimits(){
+    const fromEl = document.getElementById('fromDate');
+    const toEl = document.getElementById('toDate');
+
+    // last 5 years window (based on browser local time)
+    const today = new Date();
+    const min5y = new Date(today);
+    min5y.setFullYear(today.getFullYear() - 5);
+
+    const dsMin = new Date(RAW_AGG.base_date + "T00:00:00");
+    const dsMax = addDays(RAW_AGG.base_date, AGG.days - 1);
+
+    const minDate = new Date(Math.max(min5y.getTime(), dsMin.getTime()));
+    const maxDate = new Date(Math.min(today.getTime(), dsMax.getTime()));
+
+    const minStr = toISODate(minDate);
+    const maxStr = toISODate(maxDate);
+
+    fromEl.min = minStr;
+    fromEl.max = maxStr;
+    toEl.min = minStr;
+    toEl.max = maxStr;
+
+    // if empty or out-of-range, set to defaults
+    const oneYearAgo = new Date(maxDate);
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const defaultFromDate = new Date(Math.max(minDate.getTime(), oneYearAgo.getTime()));
+    const defaultFromStr = toISODate(defaultFromDate);
+    if (!fromEl.value || fromEl.value < minStr || fromEl.value > maxStr) fromEl.value = defaultFromStr;
+    if (!toEl.value || toEl.value < minStr || toEl.value > maxStr) toEl.value = maxStr;
+
+    fromEl.disabled = false;
+    toEl.disabled = false;
+  }
+
+  function enableDateControlsDefault(){
+    const fromEl = document.getElementById('fromDate');
+    const toEl = document.getElementById('toDate');
+    const today = new Date();
+    const min5y = new Date(today);
+    min5y.setFullYear(today.getFullYear() - 5);
+    const minStr = toISODate(min5y);
+    const maxStr = toISODate(today);
+
+    fromEl.min = minStr;
+    fromEl.max = maxStr;
+    toEl.min = minStr;
+    toEl.max = maxStr;
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const defaultFromStr = toISODate(new Date(Math.max(min5y.getTime(), oneYearAgo.getTime())));
+    if (!fromEl.value) fromEl.value = defaultFromStr;
+    if (!toEl.value) toEl.value = maxStr;
+    fromEl.disabled = false;
+    toEl.disabled = false;
+  }
+
+  function initRawAggFromPayload(payload){
+    const raw = payload && (payload.raw_agg || payload.payload || null);
+    if (!raw) return false;
+
+    RAW_AGG = raw;
+    AGG = buildAgg(RAW_AGG);
+
+    setupDateLimits();
+    rebuildCharts();
+    return true;
+  }
+
+  document.getElementById('refreshSeries').addEventListener('click', async (e) => {
+    e.preventDefault();
+
+    // Fast path: already have raw payload -> just rebuild from cache
+    if (RAW_AGG && AGG){
+      rebuildCharts();
+      const currentMetrics = computeCurrentMetricsFromAgg();
+      if (currentMetrics) renderMetrics(currentMetrics);
+      return;
+    }
+
+    try {
+      const payload = await fetchDashboardPayload(true);
+
+      // Prefer fast client-side charts if raw_agg is present
+      const ok = initRawAggFromPayload(payload);
+
+      // Fallback: server-provided charts (legacy)
+      if (!ok){
+        renderSeries(payload.series || dummySeriesPayload());
+        renderPieTop(payload.pie || dummyPiePayloads());
+      }
+
+      renderMetrics(ok ? (computeCurrentMetricsFromAgg() || {}) : (payload.metrics || {}));
+    } catch (err) {
+      console.error(err);
+      alert(String(err.message || err));
+    }
+  });
+
+  // ====== INIT ======
+  async function loadDashboardLatest(){
+    await loadIdentity();
+
+    try {
+      RAW_AGG = null;
+      AGG = null;
+      const payload = await fetchDashboardPayload(false);
+
+      const ok = initRawAggFromPayload(payload);
+
+      if (!ok){
+        // Legacy fallback
+        renderSeries(payload.series || dummySeriesPayload());
+        renderPieTop(payload.pie || dummyPiePayloads());
+      }
+
+      renderMetrics(ok ? (computeCurrentMetricsFromAgg() || {}) : (payload.metrics || {}));
+    } catch (err) {
+      console.error(err);
+
+      // UI still usable for local testing
+      renderSeries(dummySeriesPayload());
+      renderPieTop(dummyPiePayloads());
+      renderMetrics({ week: 17800, month: 53000, year: 312000 });
+    }
+  }
+
+  (async function init(){
+    enableDateControlsDefault();
+    await loadDashboardLatest();
+  })();
+
+  window.addEventListener('pageshow', () => {
+    loadDashboardLatest().catch((err) => console.error(err));
+  });
+</script>
+</body>
+</html>

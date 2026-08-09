@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accounting demo login</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f4f6f8; display: grid; place-items: center; min-height: 100vh; margin: 0; color: #17202a; }
+    main { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 12px 35px #0002; width: min(360px, calc(100% - 3rem)); }
+    label, input, button { display: block; width: 100%; box-sizing: border-box; }
+    label { margin-top: 1rem; font-weight: 600; }
+    input { padding: .75rem; margin-top: .35rem; border: 1px solid #ccd2d8; border-radius: 8px; }
+    button { margin-top: 1.3rem; padding: .8rem; border: 0; border-radius: 8px; background: #176b57; color: white; font-weight: 700; cursor: pointer; }
+    .hint { color: #63707c; font-size: .9rem; line-height: 1.45; }
+    .error { color: #b42318; display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Accounting demo</h1>
+    <p class="hint">Mock login for this public project. Default credential: <code>demo</code>.</p>
+    <p class="error" id="loginError">User ID or credential is incorrect.</p>
+    <form method="post" action="/login">
+      <label>User ID<input name="user_id" type="number" min="1" required autofocus></label>
+      <label>Credential<input name="credential" type="password" required></label>
+      <button type="submit">Login</button>
+    </form>
+  </main>
+  <script>
+    if (new URLSearchParams(window.location.search).has('error')) {
+      document.getElementById('loginError').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

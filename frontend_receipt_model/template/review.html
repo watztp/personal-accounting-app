@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Receipt Review</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root{
+      --bg:#f6f7fb; --card:#ffffff; --ink:#111827; --muted:#6b7280;
+      --accent:#2563eb; --danger:#ef4444; --ok:#16a34a;
+      --shadow:0 10px 25px rgba(0,0,0,.06); --radius:14px;
+      --border:#e5e7eb;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+      line-height:1.45; padding:24px;
+    }
+    .wrap{max-width:1440px; margin:0 auto;}
+    .banner{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;}
+    .title{font-size:20px; font-weight:800; letter-spacing:.2px;}
+    .actions{display:flex; gap:10px; flex-wrap:wrap;}
+    .btn{appearance:none; border:none; cursor:pointer; font-weight:700; border-radius:10px; box-shadow:var(--shadow);}
+    .btn.primary{background:var(--accent); color:#fff; padding:10px 16px}
+    .btn.ghost{background:#eaf2ff; color:var(--accent); padding:10px 14px; text-decoration:none; display:inline-flex; align-items:center;}
+    .btn.danger{background:var(--danger); color:#fff; padding:8px 12px}
+    .container{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; display:grid; grid-template-columns: 1.1fr 1.6fr; gap:22px;}
+    .image-panel{ max-height:80vh; overflow:auto; align-self:flex-start; }
+    .image-panel img{ width:100%; height:auto; border:1px solid var(--border); border-radius:10px; display:block; object-fit:contain; }
+    .form-panel{ min-width:0; }
+    .section-title{ margin:0 0 10px; font-size:16px; font-weight:800; }
+    .top-fields{ display:grid; grid-template-columns: 1fr; gap:10px; }
+    .two-cols{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    @media (max-width: 640px){ .two-cols{ grid-template-columns: 1fr; } }
+    .field{ display:flex; flex-direction:column; gap:6px; }
+    .label{ font-size:13px; color:var(--muted); font-weight:700; }
+    .input, .num{
+      padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#fff;
+      width:100%; max-width:480px;
+    }
+    .items-card{ margin-top:16px; border-top:1px dashed var(--border); padding-top:14px; }
+    .items-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .hint{ font-size:12px; color:var(--muted); }
+    .table-wrap{ max-height:420px; overflow:auto; border:1px solid var(--border); border-radius:12px; }
+    table{ width:100%; border-collapse:separate; border-spacing:0; }
+    thead th{
+      position:sticky; top:0; background:#fafafa; z-index:1; text-align:left;
+      padding:10px; font-size:12px; color:var(--muted); border-bottom:1px solid var(--border);
+    }
+    tbody td{ padding:8px 10px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+    tbody tr:nth-child(even){ background:#fcfdff; }
+    .w-name{ width:420px; }
+    .w-price{ width:130px; }
+    .w-qty{ width:110px; }
+    .w-unit{ width:130px; }
+    .w-disc{ width:120px; }
+    .w-act{ width:90px; text-align:center; }
+    .del-btn{ background:#fee2e2; color:#991b1b; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; }
+    .footer-actions{ display:flex; gap:12px; margin-top:16px; flex-wrap:wrap; }
+    .status{ font-size:12px; color:var(--muted); }
+    .success-card{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:28px; text-align:center; display:none; }
+    .success-title{ color:var(--ok); font-size:20px; margin:0 0 8px; }
+    .muted{ color:var(--muted); }
+    @media (max-width: 980px){
+      .container{ grid-template-columns: 1fr; }
+      .image-panel{ order:2 }
+      .form-panel{ order:1 }
+    }
+    @media (max-width: 768px){
+      body{ padding:14px; }
+      .banner{
+        flex-direction:column;
+        align-items:stretch;
+        gap:10px;
+      }
+      .actions{ width:100%; }
+      .actions .btn{
+        flex:1 1 0;
+        justify-content:center;
+      }
+
+      .container{
+        padding:14px;
+        gap:14px;
+      }
+      .image-panel{
+        order:1;
+        max-height:none;
+      }
+      .form-panel{ order:2; }
+
+      .field{ min-width:0; }
+      .input, .num{
+        width:100%;
+        max-width:none !important;
+        min-width:0;
+        min-height:44px;
+        font-size:16px;
+      }
+      #datetime{
+        width:100%;
+        max-width:none !important;
+        min-width:0;
+        display:block;
+        -webkit-appearance:none;
+        appearance:none;
+        min-height:44px;
+        font-size:16px;
+      }
+
+      .items-toolbar{
+        flex-direction:column;
+        align-items:stretch;
+      }
+      #add-row-btn{ width:100%; justify-content:center; }
+
+      .table-wrap{
+        max-height:none;
+        overflow:visible;
+        border:none;
+      }
+      table{ border-collapse:separate; border-spacing:0 10px; }
+      thead{ display:none; }
+      tbody tr.item-row{
+        display:grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap:8px 10px;
+        background:#fff;
+        border:1px solid var(--border);
+        border-radius:12px;
+        padding:10px;
+      }
+      tbody td{
+        padding:0;
+        border:0;
+        display:flex;
+        flex-direction:column;
+        gap:4px;
+      }
+      tbody td::before{
+        font-size:12px;
+        color:var(--muted);
+        font-weight:700;
+        line-height:1.2;
+      }
+      tbody td:nth-child(1){ grid-column:1 / -1; }
+      tbody td:nth-child(1)::before{ content:"Item Name"; }
+      tbody td:nth-child(2)::before{ content:"Total Price"; }
+      tbody td:nth-child(3)::before{ content:"Quantity"; }
+      tbody td:nth-child(4)::before{ content:"Unit Price"; }
+      tbody td:nth-child(5)::before{ content:"Discount"; }
+      tbody td:nth-child(6){
+        grid-column:1 / -1;
+        align-items:flex-end;
+      }
+      tbody td:nth-child(6)::before{ content:""; display:none; }
+      .del-btn{ min-height:40px; padding:8px 14px; }
+
+      .footer-actions{
+        flex-direction:column;
+        align-items:stretch;
+        gap:10px;
+      }
+      .footer-actions .status{ order:1; }
+      .footer-actions .btn.primary{
+        order:2;
+        width:100%;
+        min-height:46px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="banner">
+      <div class="title">Receipt Review</div>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="backBtn">Back to Dashboard</button>
+        <button type="button" class="btn danger" id="cancelBtn">Cancel</button>
+      </div>
+    </div>
+
+    <div class="success-card" id="successCard">
+      <h3 class="success-title">Data Submitted</h3>
+      <p class="muted">Your receipt data has been saved successfully.</p>
+      <div style="margin-top:12px;">
+        <a class="btn primary" href="/?refresh=1">Back to Dashboard</a>
+      </div>
+    </div>
+
+    <div class="container" id="reviewContainer">
+      <div class="image-panel">
+        <img id="receiptImage" src="" alt="Receipt preview" />
+      </div>
+
+      <div class="form-panel">
+        <h3 class="section-title">Store & Receipt</h3>
+        <form id="reviewForm">
+          <div class="top-fields">
+            <div class="field">
+              <label class="label" for="store_name">Store Name</label>
+              <input id="store_name" name="store_name" class="input" type="text" maxlength="100" />
+            </div>
+            <div class="field">
+              <label class="label" for="store_addr">Address</label>
+              <input id="store_addr" name="store_addr" class="input" type="text" maxlength="120" />
+            </div>
+            <div class="two-cols">
+              <div class="field">
+                <label class="label" for="store_branch">Branch</label>
+                <input id="store_branch" name="store_branch" class="input" type="text" maxlength="100" />
+              </div>
+              <div class="field">
+                <label class="label" for="datetime">Date</label>
+                <input id="datetime" name="datetime" class="input" type="date" />
+              </div>
+            </div>
+            <div class="two-cols">
+              <div class="field">
+                <label class="label" for="store_tel">Tel</label>
+                <input id="store_tel" name="store_tel" class="input" type="text" maxlength="50" />
+              </div>
+              <div class="field">
+                <label class="label" for="store_fax">Fax</label>
+                <input id="store_fax" name="store_fax" class="input" type="text" maxlength="50" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="label" for="store_reg_num">Store Registration No.</label>
+              <input id="store_reg_num" name="store_reg_num" class="input" type="text" maxlength="100" />
+            </div>
+          </div>
+
+          <div class="items-card">
+            <div class="items-toolbar">
+              <h3 class="section-title" style="margin:0">Items</h3>
+              <div>
+                <button type="button" id="add-row-btn" class="btn ghost">+ Add Row</button>
+              </div>
+            </div>
+            <div class="hint">If quantity is missing, it will default to 1. Unit price will be derived as (price / quantity).</div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="w-name">Item Name</th>
+                    <th class="w-price">Total Price</th>
+                    <th class="w-qty">Quantity</th>
+                    <th class="w-unit">Unit Price</th>
+                    <th class="w-disc">Discount</th>
+                    <th class="w-act">&nbsp;</th>
+                  </tr>
+                </thead>
+                <tbody id="items-body"></tbody>
+              </table>
+            </div>
+
+            <h3 class="section-title" style="margin-top:14px;">Summary</h3>
+            <div class="top-fields">
+              <div class="two-cols">
+                <div class="field">
+                  <label class="label" for="total_quantity">Total Quantity</label>
+                  <input id="total_quantity" name="total_quantity" class="num" type="number" step="1" min="0" />
+                </div>
+                <div class="field">
+                  <label class="label" for="sub_total">Sub Total</label>
+                  <input id="sub_total" name="sub_total" class="num" type="number" step="1" min="0" />
+                </div>
+              </div>
+              <div class="two-cols">
+                <div class="field">
+                  <label class="label" for="total">Total</label>
+                  <input id="total" name="total" class="num" type="number" step="1" min="0" />
+                </div>
+                <div class="field">
+                  <label class="label" for="payment_method">Payment Method</label>
+                  <input id="payment_method" name="payment_method" class="input" type="text" maxlength="50" />
+                </div>
+              </div>
+              <div class="two-cols">
+                <div class="field">
+                  <label class="label" for="paid_amount">Paid Amount</label>
+                  <input id="paid_amount" name="paid_amount" class="num" type="number" step="1" min="0" />
+                </div>
+                <div class="field">
+                  <label class="label" for="change_amount">Change Amount</label>
+                  <input id="change_amount" name="change_amount" class="num" type="number" step="1" min="0" />
+                </div>
+              </div>
+            </div>
+
+            <div class="footer-actions">
+              <button type="submit" class="btn primary" id="submitBtn">Submit</button>
+              <span class="status" id="statusText">Ready</span>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const body = document.getElementById('items-body');
+      const addBtn = document.getElementById('add-row-btn');
+      const statusText = document.getElementById('statusText');
+      const submitBtn = document.getElementById('submitBtn');
+      const successCard = document.getElementById('successCard');
+      const reviewContainer = document.getElementById('reviewContainer');
+      const backBtn = document.getElementById('backBtn');
+      const cancelBtn = document.getElementById('cancelBtn');
+      let resolvedUserId = null;
+
+      async function cancelReviewAndGoHome() {
+        const token = qs('token');
+        if (token) {
+          try {
+            await fetch('/api/review/cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                worker_encrypt_id: token,
+                reason: 'review canceled by user',
+              })
+            });
+          } catch (_) {
+            // ignore cancel network errors and continue navigation
+          }
+        }
+        window.location.href = '/?refresh=1';
+      }
+
+      async function resolveUserIdFromIdentity(){
+        try {
+          const res = await fetch('/api/identity', { credentials: 'include' });
+          if (!res.ok) return null;
+          const data = await res.json();
+          const value = data && data.user_id ? Number(data.user_id) : null;
+          return Number.isFinite(value) ? value : null;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      function setStatus(text){
+        if (statusText) statusText.textContent = text;
+      }
+
+      function qs(name){
+        const params = new URLSearchParams(location.search);
+        return params.get(name);
+      }
+
+      function parseNumber(val){
+        if (val === null || val === undefined) return null;
+        const cleaned = String(val).replace(/[^0-9.\-]/g, '');
+        if (cleaned === '') return null;
+        const n = Number(cleaned);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function normalizeDateForInput(raw){
+        if (!raw) return '';
+        const src = String(raw).trim();
+        if (!src) return '';
+
+        // Already valid for <input type="date">
+        const iso = src.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (iso) return src;
+
+        // Remove time section if ISO datetime-like.
+        let text = src.split('T')[0].trim();
+
+        // Normalize common JP/locale date separators and remove weekday suffix.
+        text = text
+          .replace(/[（(][^）)]*[）)]/g, '')
+          .replace(/[年/.]/g, '-')
+          .replace(/月/g, '-')
+          .replace(/日/g, '')
+          .trim();
+
+        const m = text.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+        if (!m) return '';
+
+        const yyyy = m[1];
+        const mm = String(Number(m[2])).padStart(2, '0');
+        const dd = String(Number(m[3])).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+
+      function tmplRow(i, item){
+        const name = item && item.name ? item.name : '';
+        const price = item && item.price ? item.price : '';
+        const qty = item && item.quantity ? item.quantity : '';
+        const unit = item && item.unit_price ? item.unit_price : '';
+        const disc = item && item.discount_amount ? item.discount_amount : '';
+        return `
+          <tr class="item-row" data-index="${i}">
+            <td><input type="text" name="item_${i}_name" maxlength="100" class="input" style="max-width:420px" placeholder="Item name" value="${name}" /></td>
+            <td><input type="number" name="item_${i}_price" step="1" min="0" class="num" style="max-width:130px" placeholder="Total price" value="${price}" /></td>
+            <td><input type="number" name="item_${i}_qty" step="1" min="0" class="num" style="max-width:110px" placeholder="Qty" value="${qty}" /></td>
+            <td><input type="number" name="item_${i}_unit" step="1" min="0" class="num" style="max-width:130px" placeholder="Unit price" value="${unit}" /></td>
+            <td><input type="number" name="item_${i}_discount" step="1" min="0" class="num" style="max-width:120px" placeholder="Discount" value="${disc}" /></td>
+            <td class="w-act" style="text-align:center;"><button type="button" class="del-btn delete-row-btn">Delete</button></td>
+          </tr>`;
+      }
+
+      function nextIndex() {
+        const rows = body ? body.querySelectorAll('tr.item-row') : [];
+        let maxIdx = -1;
+        rows.forEach(r => {
+          const i = parseInt(r.getAttribute('data-index'), 10);
+          if (!isNaN(i) && i > maxIdx) maxIdx = i;
+        });
+        return maxIdx + 1;
+      }
+
+      function addRow(item){
+        const i = nextIndex();
+        if (body) body.insertAdjacentHTML('beforeend', tmplRow(i, item));
+      }
+
+      function onClick(e) {
+        if (e.target && e.target.classList.contains('delete-row-btn')) {
+          const tr = e.target.closest('tr.item-row');
+          if (tr) tr.remove();
+        }
+      }
+
+      if (addBtn) addBtn.addEventListener('click', () => addRow(null));
+      if (body) body.addEventListener('click', onClick);
+
+      function fillForm(payload){
+        if (!payload) return;
+        const main = payload.receipt_main_info || {};
+        const items = payload.items || [];
+        const summary = payload.summary || {};
+
+        document.getElementById('store_name').value = main.store_name || '';
+        document.getElementById('store_branch').value = main.store_branch || '';
+        document.getElementById('store_addr').value = main.store_addr || '';
+        document.getElementById('store_tel').value = main.store_tel || '';
+        document.getElementById('store_fax').value = main.store_fax || '';
+        document.getElementById('store_reg_num').value = main.store_reg_num || '';
+
+        const dt = main.datetime || '';
+        const normalizedDate = normalizeDateForInput(dt);
+        if (normalizedDate) {
+          document.getElementById('datetime').value = normalizedDate;
+        }
+
+        if (body) body.innerHTML = '';
+        items.forEach(item => {
+          const qty = parseNumber(item.quantity) || 1;
+          const price = parseNumber(item.price);
+          let unit = parseNumber(item.unit_price);
+          if (unit === null && price !== null && qty) unit = price / qty;
+          addRow({
+            name: item.name || '',
+            price: price !== null ? price : '',
+            quantity: qty,
+            unit_price: unit !== null ? unit : '',
+            discount_amount: parseNumber(item.discount_amount) || 0
+          });
+        });
+
+        document.getElementById('total_quantity').value = summary.total_quantity || '';
+        document.getElementById('sub_total').value = summary.sub_total || '';
+        document.getElementById('total').value = summary.total || '';
+        document.getElementById('payment_method').value = summary.payment_method || '';
+        document.getElementById('paid_amount').value = summary.paid_amount || '';
+        document.getElementById('change_amount').value = summary.change_amount || '';
+      }
+
+      async function loadReview(){
+        const token = qs('token');
+        const userId = qs('user_id');
+
+        if (!token){
+          setStatus('Missing token');
+          return;
+        }
+
+        setStatus('Loading...');
+        const url = `/api/review/data?token=${encodeURIComponent(token)}`;
+        const res = await fetch(url, { headers: { 'x-worker-encrypt-id': token }});
+        if (!res.ok){
+          setStatus('Failed to load review data');
+          return;
+        }
+
+        const data = await res.json();
+        if (data.image_url) {
+          document.getElementById('receiptImage').src = data.image_url;
+        }
+
+        const payload = data.review_payload || data.draft_result?.review_payload || data.draft_result || null;
+        fillForm(payload);
+
+        const queryUserId = userId ? Number(userId) : null;
+        const payloadUserId = payload && payload.user_id ? Number(payload.user_id) : null;
+        const dataUserId = data.user_id ? Number(data.user_id) : null;
+        resolvedUserId = dataUserId ?? payloadUserId ?? (Number.isFinite(queryUserId) ? queryUserId : null);
+        if (resolvedUserId === null || !Number.isFinite(resolvedUserId)) {
+          resolvedUserId = await resolveUserIdFromIdentity();
+        }
+        setStatus('Ready');
+      }
+
+      function collectItems(){
+        const rows = body ? body.querySelectorAll('tr.item-row') : [];
+        const items = [];
+        rows.forEach(row => {
+          const name = row.querySelector('input[name$="_name"]')?.value?.trim() || '';
+          const priceRaw = row.querySelector('input[name$="_price"]')?.value || '';
+          const qtyRaw = row.querySelector('input[name$="_qty"]')?.value || '';
+          const unitRaw = row.querySelector('input[name$="_unit"]')?.value || '';
+          const discRaw = row.querySelector('input[name$="_discount"]')?.value || '';
+
+          let qty = parseNumber(qtyRaw);
+          if (qty === null || qty === 0) qty = 1;
+
+          const price = parseNumber(priceRaw);
+          let unit = parseNumber(unitRaw);
+          if (unit === null && price !== null && qty) unit = price / qty;
+
+          let discount = parseNumber(discRaw);
+          if (discount === null) discount = 0;
+
+          if (!name && price === null && unit === null) return;
+
+          items.push({
+            name,
+            quantity: String(qty),
+            unit_price: unit !== null ? String(unit) : null,
+            price: price !== null ? String(price) : null,
+            discount_amount: String(discount)
+          });
+        });
+        return items;
+      }
+
+      async function submitReview(e){
+        e.preventDefault();
+        const token = qs('token');
+        let userId = (resolvedUserId !== null ? String(resolvedUserId) : null) || qs('user_id');
+
+        if (!userId) {
+          const fallbackUserId = await resolveUserIdFromIdentity();
+          if (fallbackUserId !== null) {
+            resolvedUserId = fallbackUserId;
+            userId = String(fallbackUserId);
+          }
+        }
+
+        if (!token){
+          setStatus('Missing token');
+          return;
+        }
+        if (!userId){
+          setStatus('Missing user_id');
+          alert('Submit failed: missing user_id');
+          return;
+        }
+
+        submitBtn.disabled = true;
+        setStatus('Submitting...');
+
+        const payload = {
+          receipt_main_info: {
+            store_name: document.getElementById('store_name').value.trim(),
+            store_branch: document.getElementById('store_branch').value.trim(),
+            store_addr: document.getElementById('store_addr').value.trim(),
+            store_tel: document.getElementById('store_tel').value.trim(),
+            store_fax: document.getElementById('store_fax').value.trim(),
+            store_reg_num: document.getElementById('store_reg_num').value.trim(),
+            datetime: document.getElementById('datetime').value.trim()
+          },
+          items: collectItems(),
+          summary: {
+            total_quantity: document.getElementById('total_quantity').value.trim(),
+            sub_total: document.getElementById('sub_total').value.trim(),
+            total: document.getElementById('total').value.trim(),
+            payment_method: document.getElementById('payment_method').value.trim(),
+            paid_amount: document.getElementById('paid_amount').value.trim(),
+            change_amount: document.getElementById('change_amount').value.trim()
+          }
+        };
+
+        const bodyData = {
+          worker_encrypt_id: token,
+          reviewed_payload: payload,
+          user_id: Number(userId),
+          create_item_rows: true
+        };
+        try {
+          const res = await fetch('/api/review/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-worker-encrypt-id': token, 'x-user-id': userId },
+            body: JSON.stringify(bodyData)
+          });
+
+          if (!res.ok){
+            const msg = await res.text().catch(() => '');
+            setStatus(`Submit failed: ${msg}`);
+            submitBtn.disabled = false;
+            return;
+          }
+
+          setStatus('Submitted');
+          reviewContainer.style.display = 'none';
+          successCard.style.display = 'block';
+        } catch (err) {
+          setStatus(`Submit failed: ${String(err && err.message ? err.message : err)}`);
+          submitBtn.disabled = false;
+        }
+      }
+
+      document.getElementById('reviewForm').addEventListener('submit', submitReview);
+      if (backBtn) backBtn.addEventListener('click', cancelReviewAndGoHome);
+      if (cancelBtn) cancelBtn.addEventListener('click', cancelReviewAndGoHome);
+      loadReview().catch(() => setStatus('Failed to load'));
+    })();
+  </script>
+</body>
+</html>
